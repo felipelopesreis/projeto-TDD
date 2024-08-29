@@ -2,8 +2,12 @@ package br.edu.ifms.resources;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -24,6 +28,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import br.edu.ifms.dto.TecnicoDTO;
 import br.edu.ifms.services.TecnicoService;
+import br.edu.ifms.services.exceptions.DataBaseException;
 import br.edu.ifms.services.exceptions.ResourceNotFoundException;
 import br.edu.ifms.tests.Factory;
 
@@ -43,6 +48,7 @@ public class TecnicoResourceTests {
 	private PageImpl<TecnicoDTO> page;
 	private Long idExistente;
 	private Long idInexistente;
+	private Long idDependente;
 		
 	@BeforeEach
 	void setUp() throws Exception {
@@ -59,6 +65,48 @@ public class TecnicoResourceTests {
 	//UPDATE
 	when(service.update(eq(idExistente), any())).thenReturn(tecnicoDTO);
 	when(service.update(eq(idInexistente), any())).thenThrow(ResourceNotFoundException.class);
+	
+	//Insert
+	when(service.insert(any())).thenReturn(tecnicoDTO);
+
+	//Delete
+	doNothing().when(service).delete(idExistente);
+	doThrow(ResourceNotFoundException.class).when(service).delete(idInexistente);
+	doThrow(DataBaseException.class).when(service).delete(idDependente);
+
+	}
+	
+	@Test
+	public void insertDeveriaRetornarIsCreatedETecnicoDto() throws Exception {
+	    String jsonBody = objectMapper.writeValueAsString(tecnicoDTO);
+	    ResultActions result = mockMvc.perform(post("/tecnicos")
+	            .content(jsonBody)
+	            .contentType(MediaType.APPLICATION_JSON)
+	            .accept(MediaType.APPLICATION_JSON)
+	    );
+	    result.andExpect(status().isCreated());
+	}
+
+	@Test
+	public void deleteRetornarNoContentQuandoIdValido() throws Exception {
+	    String jsonBody = objectMapper.writeValueAsString(tecnicoDTO);
+	    ResultActions result = mockMvc.perform(delete("/tecnicos/{id}",idExistente)
+	            .content(jsonBody)
+	            .contentType(MediaType.APPLICATION_JSON)
+	            .accept(MediaType.APPLICATION_JSON)
+	    );
+	    result.andExpect(status().isNoContent());
+	}
+
+	@Test
+	public void deleteRetornarNoFoundQuandoIdNaoValido() throws Exception {
+	    String jsonBody = objectMapper.writeValueAsString(tecnicoDTO);
+	    ResultActions result = mockMvc.perform(delete("/tecnicos/{id}",idInexistente)
+	            .content(jsonBody)
+	            .contentType(MediaType.APPLICATION_JSON)
+	            .accept(MediaType.APPLICATION_JSON)
+	    );
+	    result.andExpect(status().isNotFound());
 	}
 	
 	@Test
